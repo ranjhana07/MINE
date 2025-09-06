@@ -37,7 +37,566 @@ logging.basicConfig(
 class SensorDataManager:
     """Manages real-time multi-sensor data storage and retrieval"""
     
-    def __init__(self, max_points=100):
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    def _init_(self, max_points=100):
         self.max_points = max_points
         self.data = {
             'gas_sensors': {
@@ -233,7 +792,8 @@ class MQTTClient:
     
     def connect(self):
         try:
-            self.client = mqtt.Client()
+            # Fix: Add callback_api_version parameter for newer paho-mqtt versions
+            self.client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION1)
             self.client.on_connect = self.on_connect
             self.client.on_message = self.on_message
             self.client.on_disconnect = self.on_disconnect
@@ -255,6 +815,16 @@ class MQTTClient:
             
         except Exception as e:
             logging.error(f"Error connecting to MQTT: {e}")
+    
+    def disconnect(self):
+        """Properly disconnect from MQTT broker"""
+        if self.client:
+            try:
+                self.client.loop_stop()
+                self.client.disconnect()
+                logging.info("MQTT client disconnected properly")
+            except Exception as e:
+                logging.error(f"Error disconnecting MQTT: {e}")
 
 # Initialize data manager and MQTT client
 data_manager = SensorDataManager()
@@ -265,39 +835,76 @@ app = dash.Dash(__name__, external_stylesheets=[
     dbc.themes.CYBORG,  # Dark theme
     "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"  # Icons
 ])
-app.title = "🛡️ Mine Armour - Gas Sensor Dashboard"
+app.title = "🛡 Mine Armour - Gas Sensor Dashboard"
 
-# Custom CSS styling
+# Custom CSS styling with darker red-black gradient theme
 custom_style = {
-    'backgroundColor': '#1e1e1e',
+    'backgroundColor': '#000000',
+    'background': 'linear-gradient(135deg, #000000 0%, #4B0000 50%, #000000 100%)',
     'color': '#ffffff',
     'minHeight': '100vh'
 }
 
-# Header styling
+# Header styling with darker red-black gradient
 header_style = {
-    'background': 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    'background': 'linear-gradient(135deg, #4B0000 0%, #800000 50%, #2D0000 100%)',
     'padding': '20px',
     'borderRadius': '10px',
     'marginBottom': '30px',
-    'boxShadow': '0 4px 15px rgba(0,0,0,0.3)'
+    'boxShadow': '0 4px 15px rgba(128, 0, 0, 0.6)',
+    'border': '2px solid #800000'
 }
 
-# Card styling
+# Card styling with darker red theme
 card_style = {
-    'backgroundColor': '#2d3436',
-    'border': '1px solid #636e72',
+    'backgroundColor': '#1A0000',
+    'border': '2px solid #4B0000',
     'borderRadius': '10px',
-    'boxShadow': '0 2px 10px rgba(0,0,0,0.3)'
+    'boxShadow': '0 2px 10px rgba(75, 0, 0, 0.5)',
+    'background': 'linear-gradient(135deg, #1A0000 0%, #2D0000 100%)'
 }
 
-# Chart styling
+# Chart styling with darker red theme
 chart_style = {
-    'backgroundColor': '#2d3436',
+    'backgroundColor': '#1A0000',
+    'background': 'linear-gradient(135deg, #0D0000 0%, #1A0000 100%)',
     'borderRadius': '10px',
     'padding': '10px',
-    'boxShadow': '0 2px 10px rgba(0,0,0,0.3)'
+    'boxShadow': '0 2px 10px rgba(75, 0, 0, 0.5)',
+    'border': '1px solid #4B0000'
 }
+
+# Custom CSS for darker red-black gradient background
+app.index_string = '''
+<!DOCTYPE html>
+<html>
+    <head>
+        {%metas%}
+        <title>{%title%}</title>
+        {%favicon%}
+        {%css%}
+        <style>
+            body {
+                background: linear-gradient(135deg, #000000 0%, #4B0000 25%, #800000 50%, #4B0000 75%, #000000 100%) !important;
+                background-attachment: fixed !important;
+                margin: 0;
+                padding: 0;
+            }
+            .dash-bootstrap {
+                background: transparent !important;
+            }
+        </style>
+    </head>
+    <body>
+        {%app_entry%}
+        <footer>
+            {%config%}
+            {%scripts%}
+            {%renderer%}
+        </footer>
+    </body>
+</html>
+'''
 
 # Dashboard layout
 app.layout = dbc.Container([
@@ -306,7 +913,13 @@ app.layout = dbc.Container([
         dbc.Col([
             html.Div([
                 html.H1([
-                    html.I(className="fas fa-shield-alt me-3"),
+                    html.I(className="fas fa-hard-hat me-3", style={
+                        'color': '#FFFFFF', 
+                        'fontSize': '3rem',
+                        'textShadow': '3px 3px 6px rgba(0,0,0,0.8)',
+                        'filter': 'drop-shadow(0 0 20px #800000)',
+                        'transform': 'rotate(-5deg)'
+                    }),
                     "MINE ARMOUR"
                 ], className="text-center mb-4", 
                    style={'color': '#ffffff', 'font-weight': 'bold', 'fontSize': '3rem'}),
@@ -499,7 +1112,7 @@ app.layout = dbc.Container([
         dbc.Col([
             html.H2([
                 html.I(className="fas fa-satellite-dish me-3"),
-                "🛰️ REAL-TIME GPS TRACKING & SENSOR MONITORING"
+                "🛰 REAL-TIME GPS TRACKING & SENSOR MONITORING"
             ], className="text-center mb-4", 
                style={'color': '#ffffff', 'fontWeight': 'bold'})
         ])
@@ -685,7 +1298,7 @@ app.layout = dbc.Container([
         dbc.Col([
             html.Hr(style={'borderColor': '#636e72'}),
             html.P([
-                html.I(className="fas fa-shield-alt me-2"),
+                html.I(className="fas fa-hard-hat me-2"),
                 "Mine Armour Dashboard | ",
                 html.I(className="fas fa-calendar me-2"),
                 "2025 | ",
@@ -785,31 +1398,31 @@ def update_lpg_chart(n):
             y=list(gas_data['LPG']),
             mode='lines+markers',
             name='LPG',
-            line=dict(color='#ff6b6b', width=3),
-            marker=dict(size=6, color='#ff6b6b'),
+            line=dict(color='#800000', width=3),
+            marker=dict(size=6, color='#800000'),
             fill='tonexty',
-            fillcolor='rgba(255, 107, 107, 0.1)'
+            fillcolor='rgba(128, 0, 0, 0.2)'
         ))
     
     fig.update_layout(
         title={
             'text': "🔥 LPG Gas Sensor - Real-time",
             'x': 0.5,
-            'font': {'color': '#ffffff', 'size': 16}
+            'font': {'color': '#FFFFFF', 'size': 16}
         },
         xaxis_title="Time",
         yaxis_title="LPG Level",
         height=300,
         paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        font={'color': '#ffffff'},
+        plot_bgcolor='rgba(26,0,0,0.3)',
+        font={'color': '#FFFFFF'},
         xaxis=dict(
-            gridcolor='#636e72',
-            tickfont={'color': '#ffffff'}
+            gridcolor='#4B0000',
+            tickfont={'color': '#FFFFFF'}
         ),
         yaxis=dict(
-            gridcolor='#636e72',
-            tickfont={'color': '#ffffff'}
+            gridcolor='#4B0000',
+            tickfont={'color': '#FFFFFF'}
         )
     )
     return fig
@@ -828,31 +1441,31 @@ def update_ch4_chart(n):
             y=list(gas_data['CH4']),
             mode='lines+markers',
             name='CH4',
-            line=dict(color='#4ecdc4', width=3),
-            marker=dict(size=6, color='#4ecdc4'),
+            line=dict(color='#4B0000', width=3),
+            marker=dict(size=6, color='#4B0000'),
             fill='tonexty',
-            fillcolor='rgba(78, 205, 196, 0.1)'
+            fillcolor='rgba(75, 0, 0, 0.2)'
         ))
     
     fig.update_layout(
         title={
             'text': "💨 CH4 (Methane) Gas Sensor - Real-time",
             'x': 0.5,
-            'font': {'color': '#ffffff', 'size': 16}
+            'font': {'color': '#FFFFFF', 'size': 16}
         },
         xaxis_title="Time",
         yaxis_title="CH4 Level",
         height=300,
         paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        font={'color': '#ffffff'},
+        plot_bgcolor='rgba(26,0,0,0.3)',
+        font={'color': '#FFFFFF'},
         xaxis=dict(
-            gridcolor='#636e72',
-            tickfont={'color': '#ffffff'}
+            gridcolor='#4B0000',
+            tickfont={'color': '#FFFFFF'}
         ),
         yaxis=dict(
-            gridcolor='#636e72',
-            tickfont={'color': '#ffffff'}
+            gridcolor='#4B0000',
+            tickfont={'color': '#FFFFFF'}
         )
     )
     return fig
@@ -1045,7 +1658,7 @@ def update_gps_map(n):
                     # NOTE: Scattermapbox doesn't support 'line' property
                 ),
                 name='🔴 CURRENT LOCATION',
-                text=f"📍 LIVE GPS POSITION<br>📍 Latitude: {current_lat:.6f}<br>🌍 Longitude: {current_lon:.6f}<br>🏔️ Altitude: {current_alt:.1f}m<br>🛰️ Satellites: {current_sat}",
+                text=f"📍 LIVE GPS POSITION<br>📍 Latitude: {current_lat:.6f}<br>🌍 Longitude: {current_lon:.6f}<br>🏔 Altitude: {current_alt:.1f}m<br>🛰 Satellites: {current_sat}",
                 hovertemplate='<b>%{text}</b><extra></extra>'
             ))
             
@@ -1109,7 +1722,7 @@ def update_gps_map(n):
         fig = go.Figure()
         fig.update_layout(
             title={
-                'text': "⚠️ GPS Map - Loading Error",
+                'text': "⚠ GPS Map - Loading Error",
                 'x': 0.5,
                 'font': {'color': '#FF6B6B', 'size': 16}
             },
@@ -1176,7 +1789,7 @@ def update_gps_map(n):
                     line=dict(width=2, color='white')
                 ),
                 name='Current Location',
-                text=f"� Current Position<br>Lat: {current_lat:.6f}<br>Lon: {current_lon:.6f}<br>Alt: {current_alt:.1f}m<br>Satellites: {current_sat}",
+                text=f"  Current Position<br>Lat: {current_lat:.6f}<br>Lon: {current_lon:.6f}<br>Alt: {current_alt:.1f}m<br>Satellites: {current_sat}",
                 hovertemplate='<b>Current Location</b><br>%{text}<extra></extra>'
             ))
             
@@ -1187,7 +1800,7 @@ def update_gps_map(n):
                     zoom=16
                 ),
                 title={
-                    'text': f"�️ GPS Tracking | Lat: {current_lat:.6f}, Lon: {current_lon:.6f} | Alt: {current_alt:.1f}m | Sats: {current_sat}",
+                    'text': f"  GPS Tracking | Lat: {current_lat:.6f}, Lon: {current_lon:.6f} | Alt: {current_alt:.1f}m | Sats: {current_sat}",
                     'x': 0.5,
                     'font': {'color': '#ffffff', 'size': 14}
                 },
@@ -1238,7 +1851,7 @@ def update_gps_map(n):
         fig = go.Figure()
         fig.update_layout(
             title={
-                'text': "⚠️ GPS Map Error",
+                'text': "⚠ GPS Map Error",
                 'x': 0.5,
                 'font': {'color': '#ffffff', 'size': 16}
             },
@@ -1290,7 +1903,7 @@ def update_heartrate_chart(n):
     
     fig.update_layout(
         title={
-            'text': "❤️ Heart Rate Monitor - Real-time",
+            'text': "❤ Heart Rate Monitor - Real-time",
             'x': 0.5,
             'font': {'color': '#ffffff', 'size': 16}
         },
@@ -1384,7 +1997,7 @@ def update_temperature_chart(n):
     
     fig.update_layout(
         title={
-            'text': "🌡️ Temperature Monitor - Real-time",
+            'text': "🌡 Temperature Monitor - Real-time",
             'x': 0.5,
             'font': {'color': '#ffffff', 'size': 16}
         },
@@ -1496,20 +2109,28 @@ def update_gsr_chart(n):
     return fig
 
 if __name__ == '__main__':
-    # Connect to MQTT broker
-    mqtt_client.connect()
-    
-    # Wait a moment for connection
-    time.sleep(2)
-    
-    print("🛡️ Starting Mine Armour Multi-Sensor Dashboard...")
-    print("📊 Dashboard will be available at: http://localhost:8050")
-    print("🔄 Real-time updates every second")
-    print("📡 MQTT Topic: LOKI_2004 (Multi-Sensor Data)")
-    print("🔥 Gas Sensors: LPG, CH4, Propane, Butane, H2")
-    print("❤️ Health Sensors: Heart Rate, SpO2, GSR, Stress")
-    print("🌡️ Environment: Temperature, Humidity")
-    print("📍 GPS: Location tracking")
-    
-    # Run the dashboard
-    app.run_server(debug=True, host='0.0.0.0', port=8050)
+    try:
+        # Connect to MQTT broker
+        mqtt_client.connect()
+
+        # Wait a moment for connection
+        time.sleep(2)
+
+        print("🛡 Starting Mine Armour Multi-Sensor Dashboard...")
+        print("📊 Dashboard will be available at: http://localhost:8050")
+        print("🔄 Real-time updates every second")
+        print("📡 MQTT Topic: LOKI_2004 (Multi-Sensor Data)")
+        print("🔥 Gas Sensors: LPG, CH4, Propane, Butane, H2")
+        print("❤ Health Sensors: Heart Rate, SpO2, GSR, Stress")
+        print("🌡 Environment: Temperature, Humidity")
+        print("📍 GPS: Location tracking")
+
+        # Run the dashboard
+        app.run(debug=True, host='0.0.0.0', port=8050)
+
+    except KeyboardInterrupt:
+        print("\n🛑 Shutting down Mine Armour Dashboard...")
+        mqtt_client.disconnect()
+    except Exception as e:
+        print(f"❌ Error starting dashboard: {e}")
+        mqtt_client.disconnect()

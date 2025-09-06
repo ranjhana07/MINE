@@ -34,7 +34,7 @@ if not all([host, port, mqtt_username, mqtt_password]):
     exit(1)
 
 # Create MQTT client with TLS support
-client = mqtt.Client("SensorDataServer")
+client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, "SensorDataServer")
 
 # Configure TLS/SSL
 context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
@@ -71,7 +71,7 @@ def parse_gas_sensor_data(payload):
         gas_data["timestamp"] = timestamp
         
         # Log the gas readings
-        logging.info(f"� GAS SENSOR [{timestamp[11:19]}]:")
+        logging.info(f"  GAS SENSOR [{timestamp[11:19]}]:")
         logging.info(f"   💨 LPG: {data.get('LPG', 'N/A')} ppm")
         logging.info(f"   🔥 CH4: {data.get('CH4', 'N/A')} ppm") 
         logging.info(f"   ⛽ Propane: {data.get('Propane', 'N/A')} ppm")
@@ -122,10 +122,10 @@ def print_gas_summary():
         if gas_data["timestamp"]:
             logging.info(f"   📈 Last Update: {gas_data['timestamp']}")
             logging.info(f"   💨 LPG: {gas_data['LPG']} ppm")
-            logging.info(f"   � CH4: {gas_data['CH4']} ppm")
+            logging.info(f"     CH4: {gas_data['CH4']} ppm")
             logging.info(f"   ⛽ Propane: {gas_data['Propane']} ppm") 
             logging.info(f"   🧪 Butane: {gas_data['Butane']} ppm")
-            logging.info(f"   � H2: {gas_data['H2']} ppm")
+            logging.info(f"     H2: {gas_data['H2']} ppm")
         else:
             logging.info("   📉 No gas sensor data received yet")
         
@@ -138,7 +138,7 @@ client.on_message = on_message
 def run():
     """Main function to run the gas sensor data server"""
     try:
-        logging.info("🛡️ MINE ARMOUR - GAS SENSOR DATA SERVER")
+        logging.info("🛡 MINE ARMOUR - GAS SENSOR DATA SERVER")
         logging.info("==================================================")
         logging.info(f"🔗 Connecting to MQTT broker: {host}:{port}")
         logging.info(f"📡 Monitoring topic: {mqtt_topic}")
