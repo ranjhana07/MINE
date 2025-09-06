@@ -596,7 +596,7 @@ class SensorDataManager:
 
 
 
-    def _init_(self, max_points=100):
+    def __init__(self, max_points=100):
         self.max_points = max_points
         self.data = {
             'gas_sensors': {
@@ -2112,10 +2112,10 @@ if __name__ == '__main__':
     try:
         # Connect to MQTT broker
         mqtt_client.connect()
-
+        
         # Wait a moment for connection
         time.sleep(2)
-
+        
         print("🛡 Starting Mine Armour Multi-Sensor Dashboard...")
         print("📊 Dashboard will be available at: http://localhost:8050")
         print("🔄 Real-time updates every second")
@@ -2124,10 +2124,10 @@ if __name__ == '__main__':
         print("❤ Health Sensors: Heart Rate, SpO2, GSR, Stress")
         print("🌡 Environment: Temperature, Humidity")
         print("📍 GPS: Location tracking")
-
+        
         # Run the dashboard
-        app.run(debug=True, host='0.0.0.0', port=8050)
-
+        app.run_server(debug=True, host='0.0.0.0', port=8050)
+        
     except KeyboardInterrupt:
         print("\n🛑 Shutting down Mine Armour Dashboard...")
         mqtt_client.disconnect()
