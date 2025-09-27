@@ -20,7 +20,7 @@ import paho.mqtt.client as mqtt
 import plotly.graph_objects as go
 import plotly.express as px
 import dash
-from dash import dcc, html, Input, Output, State
+from dash import dcc, html, Input, Output, State, ALL, callback_context
 import dash_bootstrap_components as dbc
 from dash.exceptions import PreventUpdate
 
@@ -874,6 +874,8 @@ chart_style = {
     'border': '1px solid #4B0000'
 }
 
+## Removed experimental DEMO_ZONES, ENABLE_DEMO_SIMULATION, and ZoneDemoState (rollback).
+
 # Custom CSS for darker red-black gradient background
 app.index_string = '''
 <!DOCTYPE html>
@@ -893,6 +895,39 @@ app.index_string = '''
             .dash-bootstrap {
                 background: transparent !important;
             }
+            /* Landing page card styles */
+            .landing-wrapper {display:flex;align-items:center;justify-content:center;min-height:100vh;padding:40px;}
+            .landing-card {max-width:480px;width:100%;background:linear-gradient(145deg,#1A0000 0%,#2D0000 55%,#1A0000 100%);border:1px solid #800000;box-shadow:0 10px 35px rgba(128,0,0,0.55),0 4px 12px rgba(0,0,0,0.6);padding:55px 50px 50px;border-radius:22px;position:relative;overflow:hidden;}
+            .landing-card:before {content:"";position:absolute;inset:0;background:radial-gradient(circle at 30% 20%,rgba(255,80,80,0.25),transparent 60%),radial-gradient(circle at 80% 70%,rgba(255,0,0,0.18),transparent 65%);pointer-events:none;}
+            .landing-title {font-weight:800;font-size:3rem;text-align:center;margin:0 0 2.2rem;color:#ffffff;letter-spacing:1px;text-shadow:0 0 18px rgba(255,60,60,0.55),0 0 6px rgba(255,255,255,0.3);}            
+            .landing-dropdown .Select-control {background:#140000;border:1px solid #990000;color:#fff;box-shadow:0 0 0 2px rgba(255,0,0,0.15);}            
+            .landing-dropdown .Select-placeholder, .landing-dropdown .Select-value-label {color:#ffdede !important;font-weight:600;letter-spacing:.5px;}
+            .landing-dropdown .Select-menu-outer {background:#220000;border:1px solid #990000;}
+            .landing-dropdown .Select-option {background:#220000;color:#ffffff;font-size:0.85rem;}
+            .landing-dropdown .Select-option.is-focused {background:#551111;}
+            .landing-dropdown .Select-option.is-selected {background:#770000;}
+            .landing-btn {display:block;width:100%;margin-top:2.2rem;padding:14px 30px;font-weight:700;letter-spacing:1px;font-size:0.95rem;background:linear-gradient(90deg,#c60000,#ff2626);border:none;border-radius:10px;color:#fff;box-shadow:0 6px 16px rgba(255,0,0,0.4),0 2px 4px rgba(0,0,0,0.5);transition:all .25s ease;}
+            .landing-btn:hover {transform:translateY(-3px);box-shadow:0 10px 24px rgba(255,0,0,0.55),0 4px 10px rgba(0,0,0,0.55);}
+            .landing-btn:active {transform:translateY(0);}
+            .landing-subtext {text-align:center;margin-top:1rem;font-size:0.75rem;letter-spacing:.5px;color:#ffb3b3;opacity:.8;}
+            @media (max-width:600px){.landing-card{padding:50px 28px 45px;border-radius:18px;} .landing-title{font-size:2.4rem;margin-bottom:2rem;} }
+            /* Removed experimental zone/worker CSS */
+            /* Zone dropdown styling */
+            #zone-dropdown .Select-control {background:#1A0000; border:1px solid #4B0000; color:#ffffff;}
+            #zone-dropdown .Select-placeholder, 
+            #zone-dropdown .Select-value-label {color:#ffffff !important; font-weight:600; letter-spacing:.5px;}
+            #zone-dropdown .Select-menu-outer {background:#2D0000; border:1px solid #4B0000;}
+            #zone-dropdown .Select-option {background:#2D0000; color:#ffffff; font-size:0.8rem;}
+            #zone-dropdown .Select-option.is-focused {background:#550000;}
+            #zone-dropdown .Select-option.is-selected {background:#800000;}
+            #zone-dropdown .Select-arrow {border-top-color:#ffffff !important;}
+            #zone-dropdown .Select-control:hover {box-shadow:0 0 6px #ff4444;}
+            .node-context-banner {background:linear-gradient(90deg,#2D0000,#4B0000);border:1px solid #800000;border-radius:8px;padding:6px 14px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,0.4);}            
+            .node-pill {background:#800000;border:1px solid #ffaaaa;color:#fff;font-size:0.75rem;font-weight:600;letter-spacing:.5px;padding:4px 10px;border-radius:16px;box-shadow:0 0 6px #ff4444;}            
+            .zone-pill {background:#2D0000;border:1px solid #aa4444;color:#ffdddd;font-size:0.7rem;font-weight:600;padding:4px 10px;border-radius:14px;}            
+            .metric-value {font-size:1.9rem; line-height:1.1; font-weight:700; letter-spacing:.5px;}
+            @media (max-width:1400px){ .metric-value {font-size:1.6rem;} }
+            @media (max-width:1200px){ .metric-value {font-size:1.4rem;} }
         </style>
     </head>
     <body>
@@ -907,7 +942,64 @@ app.index_string = '''
 '''
 
 # Dashboard layout
-app.layout = dbc.Container([
+app.layout = html.Div([
+    dcc.Location(id='url', refresh=False),
+    dcc.Store(id='chosen-zone-store'),
+    dcc.Store(id='auth-store', storage_type='session'),
+    html.Div(id='page-content')
+])
+
+# ---------------------------
+# Page: Zone Selection
+# ---------------------------
+def zone_select_layout():
+    # Full screen centered flex container
+    return html.Div([
+        html.Div([
+            html.Div([
+                html.H1("MINE ARMOUR", className='landing-title'),
+                html.Div("Protecting Miners Preserving Lives", className='landing-subtext', style={'fontSize':'0.95rem','marginTop':'-18px','marginBottom':'10px','letterSpacing':'.8px','color':'#ffcccc','fontWeight':'600'}),
+                dcc.Dropdown(
+                    id='zone-select-only',
+                    options=[
+                        {'label':'Zone A','value':'ZONE_A'},
+                        {'label':'Zone B','value':'ZONE_B'},
+                        {'label':'Zone C','value':'ZONE_C'}
+                    ],
+                    value='ZONE_A',
+                    clearable=False,
+                    placeholder='Select Zone',
+                    className='landing-dropdown'
+                ),
+                html.Button("TRACK", id='go-to-vitals-btn', n_clicks=0, className='landing-btn'),
+                html.Div(id='zone-select-msg', className='landing-subtext')
+            ], className='landing-card')
+        ], className='landing-wrapper')
+    ])
+
+# ---------------------------
+# Login Page (hard-coded demo creds)
+# ---------------------------
+def login_layout():
+    return html.Div([
+        html.Div([
+            html.Div([
+                html.H1("MINE ARMOUR", className='landing-title'),
+                html.Div("Protecting Miners, Preserving Lives", className='landing-subtext', style={'marginTop':'-18px','fontSize':'0.9rem'}),
+                dbc.Input(id='login-username', placeholder='Username', type='text', value='', style={'marginBottom':'14px','background':'#140000','color':'#fff','border':'1px solid #990000'}),
+                dbc.Input(id='login-password', placeholder='Password', type='password', value='', style={'marginBottom':'8px','background':'#140000','color':'#fff','border':'1px solid #990000'}),
+                html.Button('LOGIN', id='login-btn', n_clicks=0, className='landing-btn'),
+                html.Div(id='login-msg', className='landing-subtext', style={'marginTop':'12px'}),
+                html.Div(html.Small('Demo: admin / admin123', style={'opacity':0.5}), style={'textAlign':'center','marginTop':'4px'})
+            ], className='landing-card', style={'maxWidth':'520px'})
+        ], className='landing-wrapper')
+    ])
+
+# ---------------------------
+# Page: Vitals Dashboard (existing content refactored)
+# ---------------------------
+def vitals_layout():
+    return dbc.Container([
     # Header Section
     dbc.Row([
         dbc.Col([
@@ -945,6 +1037,50 @@ app.layout = dbc.Container([
             ], id="status-alert", color="success", className="mb-0")
         ])
     ], className="mb-4"),
+
+    # (Removed experimental zone / worker demo UI)
+
+    # Zone selection dropdown (simple UI replacement for previous modal)
+    dbc.Row([
+        dbc.Col([
+            dbc.Card([
+                dbc.CardBody([
+                    html.Div([
+                        html.Label("Select Zone", style={'fontWeight':'600','color':'#ffdddd'}),
+                        dcc.Dropdown(
+                            id='zone-dropdown',
+                            options=[
+                                {'label':'Zone A','value':'ZONE_A'},
+                                {'label':'Zone B','value':'ZONE_B'},
+                                {'label':'Zone C','value':'ZONE_C'}
+                            ],
+                            value='ZONE_A',
+                            clearable=False,
+                            style={'backgroundColor':'#1A0000'}
+                        ),
+                        html.Div(id='zone-info-panel', className='mt-3', children=html.Small("Zone A selected. (Integrate real data later)", style={'opacity':0.8})),
+                        html.Hr(style={'borderColor':'#4B0000'}),
+                        html.Div([
+                            html.H6("Active Nodes", style={'color':'#ffdddd','fontWeight':'600','fontSize':'0.85rem'}),
+                            html.Div(id='active-nodes-badges', style={'minHeight':'32px'}),
+                            dcc.Dropdown(
+                                id='node-dropdown',
+                                placeholder='Select Node',
+                                clearable=False,
+                                style={'marginTop':'8px','backgroundColor':'#1A0000'}
+                            ),
+                            dcc.Store(id='selected-node-store')
+                        ], className='mt-2')
+                    ])
+                ])
+            ], style={'background':'linear-gradient(135deg,#1A0000 0%,#2D0000 100%)','border':'1px solid #4B0000'})
+        ], width=3)
+    ], className='mb-4'),
+
+    # Node / Zone context banner row (improves alignment of metric cards by moving node id out of values)
+    dbc.Row([
+        dbc.Col(html.Div(id='node-context-banner', className='node-context-banner', children=html.Small("Zone A | Node A-NODE-1", style={'opacity':0.85})), width=12)
+    ], className='mb-3'),
     
     # Current Values Grid
     dbc.Row([
@@ -953,8 +1089,7 @@ app.layout = dbc.Container([
                 dbc.CardBody([
                     html.Div([
                         html.I(className="fas fa-fire text-danger", style={'fontSize': '2rem'}),
-                        html.H3(id="lpg-current", className="mb-0 mt-2", 
-                               style={'color': '#ff6b6b', 'fontWeight': 'bold'}),
+               html.H3(id="lpg-current", className="metric-value mb-0 mt-2", style={'color': '#ff6b6b'}),
                         html.P("LPG Gas Level", className="text-muted mb-0")
                     ], className="text-center")
                 ])
@@ -966,8 +1101,7 @@ app.layout = dbc.Container([
                 dbc.CardBody([
                     html.Div([
                         html.I(className="fas fa-cloud text-primary", style={'fontSize': '2rem'}),
-                        html.H3(id="ch4-current", className="mb-0 mt-2", 
-                               style={'color': '#4ecdc4', 'fontWeight': 'bold'}),
+               html.H3(id="ch4-current", className="metric-value mb-0 mt-2", style={'color': '#4ecdc4'}),
                         html.P("CH4 (Methane)", className="text-muted mb-0")
                     ], className="text-center")
                 ])
@@ -979,8 +1113,7 @@ app.layout = dbc.Container([
                 dbc.CardBody([
                     html.Div([
                         html.I(className="fas fa-gas-pump text-success", style={'fontSize': '2rem'}),
-                        html.H3(id="propane-current", className="mb-0 mt-2", 
-                               style={'color': '#45b7d1', 'fontWeight': 'bold'}),
+               html.H3(id="propane-current", className="metric-value mb-0 mt-2", style={'color': '#45b7d1'}),
                         html.P("Propane Gas", className="text-muted mb-0")
                     ], className="text-center")
                 ])
@@ -992,8 +1125,7 @@ app.layout = dbc.Container([
                 dbc.CardBody([
                     html.Div([
                         html.I(className="fas fa-burn text-warning", style={'fontSize': '2rem'}),
-                        html.H3(id="butane-current", className="mb-0 mt-2", 
-                               style={'color': '#f39c12', 'fontWeight': 'bold'}),
+               html.H3(id="butane-current", className="metric-value mb-0 mt-2", style={'color': '#f39c12'}),
                         html.P("Butane Gas", className="text-muted mb-0")
                     ], className="text-center")
                 ])
@@ -1005,8 +1137,7 @@ app.layout = dbc.Container([
                 dbc.CardBody([
                     html.Div([
                         html.I(className="fas fa-atom text-info", style={'fontSize': '2rem'}),
-                        html.H3(id="h2-current", className="mb-0 mt-2", 
-                               style={'color': '#9b59b6', 'fontWeight': 'bold'}),
+               html.H3(id="h2-current", className="metric-value mb-0 mt-2", style={'color': '#9b59b6'}),
                         html.P("H2 (Hydrogen)", className="text-muted mb-0")
                     ], className="text-center")
                 ])
@@ -1033,8 +1164,7 @@ app.layout = dbc.Container([
                 dbc.CardBody([
                     html.Div([
                         html.I(className="fas fa-heartbeat text-danger", style={'fontSize': '2rem'}),
-                        html.H3(id="heartrate-current", className="mb-0 mt-2", 
-                               style={'color': '#e74c3c', 'fontWeight': 'bold'}),
+               html.H3(id="heartrate-current", className="metric-value mb-0 mt-2", style={'color': '#e74c3c'}),
                         html.P("Heart Rate (BPM)", className="text-muted mb-0")
                     ], className="text-center")
                 ])
@@ -1046,8 +1176,7 @@ app.layout = dbc.Container([
                 dbc.CardBody([
                     html.Div([
                         html.I(className="fas fa-lungs text-info", style={'fontSize': '2rem'}),
-                        html.H3(id="spo2-current", className="mb-0 mt-2", 
-                               style={'color': '#3498db', 'fontWeight': 'bold'}),
+               html.H3(id="spo2-current", className="metric-value mb-0 mt-2", style={'color': '#3498db'}),
                         html.P("SpO2 (%)", className="text-muted mb-0")
                     ], className="text-center")
                 ])
@@ -1059,8 +1188,7 @@ app.layout = dbc.Container([
                 dbc.CardBody([
                     html.Div([
                         html.I(className="fas fa-thermometer-half text-warning", style={'fontSize': '2rem'}),
-                        html.H3(id="temperature-current", className="mb-0 mt-2", 
-                               style={'color': '#f39c12', 'fontWeight': 'bold'}),
+               html.H3(id="temperature-current", className="metric-value mb-0 mt-2", style={'color': '#f39c12'}),
                         html.P("Temperature (°C)", className="text-muted mb-0")
                     ], className="text-center")
                 ])
@@ -1072,8 +1200,7 @@ app.layout = dbc.Container([
                 dbc.CardBody([
                     html.Div([
                         html.I(className="fas fa-tint text-primary", style={'fontSize': '2rem'}),
-                        html.H3(id="humidity-current", className="mb-0 mt-2", 
-                               style={'color': '#2980b9', 'fontWeight': 'bold'}),
+               html.H3(id="humidity-current", className="metric-value mb-0 mt-2", style={'color': '#2980b9'}),
                         html.P("Humidity (%)", className="text-muted mb-0")
                     ], className="text-center")
                 ])
@@ -1085,8 +1212,7 @@ app.layout = dbc.Container([
                 dbc.CardBody([
                     html.Div([
                         html.I(className="fas fa-hand-paper text-success", style={'fontSize': '2rem'}),
-                        html.H3(id="gsr-current", className="mb-0 mt-2", 
-                               style={'color': '#27ae60', 'fontWeight': 'bold'}),
+               html.H3(id="gsr-current", className="metric-value mb-0 mt-2", style={'color': '#27ae60'}),
                         html.P("GSR Level", className="text-muted mb-0")
                     ], className="text-center")
                 ])
@@ -1098,8 +1224,7 @@ app.layout = dbc.Container([
                 dbc.CardBody([
                     html.Div([
                         html.I(className="fas fa-brain text-danger", style={'fontSize': '2rem'}),
-                        html.H3(id="stress-current", className="mb-0 mt-2", 
-                               style={'color': '#e67e22', 'fontWeight': 'bold'}),
+               html.H3(id="stress-current", className="metric-value mb-0 mt-2", style={'color': '#e67e22'}),
                         html.P("Stress Level", className="text-muted mb-0")
                     ], className="text-center")
                 ])
@@ -1311,6 +1436,54 @@ app.layout = dbc.Container([
     
 ], fluid=True, style=custom_style)
 
+def serve_layout():
+    return app.layout
+
+@app.callback(
+    Output('page-content','children'),
+    Input('url','pathname'),
+    State('chosen-zone-store','data'),
+    State('auth-store','data')
+)
+def display_page(pathname, zone_data, auth_data):
+    # Not authenticated -> always show login
+    if not auth_data:
+        return login_layout()
+    if pathname == '/vitals':
+        return vitals_layout()
+    # default root -> zone selection
+    return zone_select_layout()
+
+@app.callback(
+    [Output('chosen-zone-store','data'), Output('zone-select-msg','children'), Output('url','pathname')],
+    Input('go-to-vitals-btn','n_clicks'),
+    State('zone-select-only','value'),
+    prevent_initial_call=True
+)
+def go_to_vitals(n, zone_value):
+    if not zone_value:
+        return dash.no_update, 'Please choose a zone.', dash.no_update
+    return {'zone': zone_value}, '', '/vitals'
+
+# ---------------------------
+# Login callback
+# ---------------------------
+@app.callback(
+    [Output('auth-store','data'), Output('login-msg','children'), Output('url','pathname', allow_duplicate=True)],
+    Input('login-btn','n_clicks'),
+    State('login-username','value'),
+    State('login-password','value'),
+    prevent_initial_call=True
+)
+def login_action(n, username, password):
+    if not username or not password:
+        return dash.no_update, 'Enter username and password.', dash.no_update
+    if username == 'admin' and password == 'admin123':
+        return {'user':'admin'}, 'Login success. Redirecting...', '/'
+    return dash.no_update, 'Invalid credentials.', dash.no_update
+
+## Removed zone/worker demo callbacks and synthetic worker chart filters.
+
 # Callbacks for real-time updates
 @app.callback(
     [
@@ -1332,9 +1505,9 @@ app.layout = dbc.Container([
         Output('gps-alt', 'children'),
         Output('gps-sat', 'children'),
     ],
-    [Input('interval-component', 'n_intervals')]
+    [Input('interval-component', 'n_intervals'), Input('selected-node-store','data')]
 )
-def update_current_values(n):
+def update_current_values(n, selected_node):
     try:
         from datetime import datetime
         
@@ -1605,274 +1778,87 @@ def update_h2_chart(n):
     [Input('interval-component', 'n_intervals')]
 )
 def update_gps_map(n):
+    """Render GPS map with trail and current location. Clean version (corruption removed)."""
     try:
         gps_data = data_manager.get_gps_data()
-        
         fig = go.Figure()
-        
-        # Get the latest GPS coordinates from the latest field
         latest = gps_data.get('latest', {})
         current_lat = latest.get('lat', 0.0)
         current_lon = latest.get('lon', 0.0)
         current_alt = latest.get('alt', 0.0)
         current_sat = latest.get('sat', 0)
-        
-        # Check if we have valid GPS coordinates
-        if current_lat and current_lon and current_lat != 0.0 and current_lon != 0.0:
-            
-            # Add GPS trail if we have historical data
-            lat_history = gps_data.get('lat', [])
-            lon_history = gps_data.get('lon', [])
-            
-            if len(lat_history) > 1 and len(lon_history) > 1:
-                # Convert to lists and show trail of recent GPS points (last 20 points)
-                lat_list = list(lat_history)  # Ensure it's a list
-                lon_list = list(lon_history)  # Ensure it's a list
-                
-                trail_size = min(20, len(lat_list))
-                if trail_size > 1:
-                    # Get trail points (exclude current/last point)
-                    trail_lat = lat_list[max(0, len(lat_list)-trail_size-1):-1]
-                    trail_lon = lon_list[max(0, len(lon_list)-trail_size-1):-1]
-                    
-                    if trail_lat and trail_lon and len(trail_lat) > 0 and len(trail_lon) > 0:
-                        fig.add_trace(go.Scattermapbox(
-                            lat=trail_lat,
-                            lon=trail_lon,
-                            mode='lines+markers',
-                            marker=dict(size=6, color='#007BFF', opacity=0.6),
-                            line=dict(width=2, color='#007BFF'),
-                            name='GPS Trail',
-                            hovertemplate='<b>GPS Trail</b><br>Lat: %{lat:.6f}<br>Lon: %{lon:.6f}<extra></extra>'
-                        ))
-            
-            # Add current location marker - LARGE and VISIBLE
+
+        # Valid coordinate check (avoid 0,0)
+        if current_lat and current_lon and (current_lat != 0.0 or current_lon != 0.0):
+            lat_history = list(gps_data.get('lat', []))
+            lon_history = list(gps_data.get('lon', []))
+            timestamps = list(gps_data.get('timestamps', []))
+
+            # Trail (last up to 25 points excluding current)
+            if len(lat_history) > 2 and len(lon_history) > 2:
+                trail_lat = lat_history[-26:-1]
+                trail_lon = lon_history[-26:-1]
+                if trail_lat and trail_lon:
+                    fig.add_trace(go.Scattermapbox(
+                        lat=trail_lat,
+                        lon=trail_lon,
+                        mode='lines+markers',
+                        marker=dict(size=6, color='#007BFF', opacity=0.6),
+                        line=dict(width=2, color='#007BFF'),
+                        name='GPS Trail',
+                        hovertemplate='<b>Trail</b><br>Lat %{lat:.6f}<br>Lon %{lon:.6f}<extra></extra>'
+                    ))
+
+            # Current location marker
             fig.add_trace(go.Scattermapbox(
                 lat=[current_lat],
                 lon=[current_lon],
                 mode='markers',
-                marker=dict(
-                    size=30,  # Very large marker
-                    color='#FF0000',  # Bright red
-                    symbol='circle'
-                    # NOTE: Scattermapbox doesn't support 'line' property
-                ),
-                name='🔴 CURRENT LOCATION',
-                text=f"📍 LIVE GPS POSITION<br>📍 Latitude: {current_lat:.6f}<br>🌍 Longitude: {current_lon:.6f}<br>🏔 Altitude: {current_alt:.1f}m<br>🛰 Satellites: {current_sat}",
-                hovertemplate='<b>%{text}</b><extra></extra>'
-            ))
-            
-            # Update map layout with enhanced visualization
-            fig.update_layout(
-                mapbox=dict(
-                    style="open-street-map",
-                    center=dict(lat=current_lat, lon=current_lon),
-                    zoom=16  # Good zoom level for visibility
-                ),
-                title={
-                    'text': f"🌍 LIVE GPS TRACKING | {current_lat:.6f}, {current_lon:.6f} | Alt: {current_alt:.1f}m | Sats: {current_sat}",
-                    'x': 0.5,
-                    'font': {'color': '#00FF00', 'size': 18, 'family': 'Arial Black'}
-                },
-                height=500,
-                margin=dict(l=0, r=0, t=60, b=0),
-                paper_bgcolor='rgba(0,0,0,0.95)',
-                font={'color': '#ffffff'},
-                showlegend=True,
-                legend=dict(
-                    bgcolor='rgba(0,0,0,0.8)',
-                    bordercolor='#00FF00',
-                    borderwidth=2,
-                    font=dict(color='white', size=14)
-                )
-            )
-        else:
-            # No valid GPS data - show waiting message
-            fig.update_layout(
-                title={
-                    'text': "🌍 GPS Location - Waiting for Signal...",
-                    'x': 0.5,
-                    'font': {'color': '#FFD700', 'size': 16}
-                },
-                height=500,
-                margin=dict(l=0, r=0, t=60, b=0),
-                paper_bgcolor='rgba(0,0,0,0.95)',
-                plot_bgcolor='rgba(0,0,0,0.95)',
-                font={'color': '#ffffff'},
-                annotations=[
-                    dict(
-                        text="📡 Searching for GPS signal...<br>Please wait for location data",
-                        showarrow=False,
-                        xref="paper", yref="paper",
-                        x=0.5, y=0.5,
-                        xanchor='center', yanchor='middle',
-                        font=dict(size=18, color="#FFD700"),
-                        bgcolor="rgba(0,0,0,0.8)",
-                        bordercolor="#FFD700",
-                        borderwidth=2
-                    )
-                ]
-            )
-        
-        return fig
-        
-    except Exception as e:
-        # Error handling with specific error message
-        print(f"GPS Map Error: {str(e)}")  # Debug print
-        fig = go.Figure()
-        fig.update_layout(
-            title={
-                'text': "⚠ GPS Map - Loading Error",
-                'x': 0.5,
-                'font': {'color': '#FF6B6B', 'size': 16}
-            },
-            height=500,
-            margin=dict(l=0, r=0, t=60, b=0),
-            paper_bgcolor='rgba(0,0,0,0.95)',
-            plot_bgcolor='rgba(0,0,0,0.95)',
-            font={'color': '#ffffff'},
-            annotations=[
-                dict(
-                    text=f"❌ Error: {str(e)}<br>Checking GPS data...",
-                    showarrow=False,
-                    xref="paper", yref="paper",
-                    x=0.5, y=0.5,
-                    xanchor='center', yanchor='middle',
-                    font=dict(size=16, color="#FF6B6B"),
-                    bgcolor="rgba(0,0,0,0.8)",
-                    bordercolor="#FF6B6B",
-                    borderwidth=2
-                )
-            ]
-        )
-        return fig
-    try:
-        gps_data = data_manager.get_gps_data()
-        
-        fig = go.Figure()
-        
-        if gps_data['lat'] and gps_data['lon'] and len(gps_data['lat']) > 0:
-            # Get current location
-            lat_list = list(gps_data['lat'])
-            lon_list = list(gps_data['lon'])
-            alt_list = list(gps_data['alt']) if gps_data['alt'] else [0] * len(lat_list)
-            sat_list = list(gps_data['sat']) if gps_data['sat'] else [0] * len(lat_list)
-            timestamps = list(gps_data['timestamps'])
-            
-            current_lat = lat_list[-1] if lat_list else 0
-            current_lon = lon_list[-1] if lon_list else 0
-            current_alt = alt_list[-1] if alt_list else 0
-            current_sat = sat_list[-1] if sat_list else 0
-            
-            # Add GPS trail (simplified)
-            if len(lat_list) > 1:
-                fig.add_trace(go.Scattermapbox(
-                    lat=lat_list,
-                    lon=lon_list,
-                    mode='lines+markers',
-                    marker=dict(size=8, color='blue', opacity=0.7),
-                    line=dict(width=3, color='blue'),
-                    name='GPS Trail',
-                    text=[f"Time: {t.strftime('%H:%M:%S')}" for t in timestamps],
-                    hovertemplate='<b>GPS Point</b><br>Lat: %{lat:.6f}<br>Lon: %{lon:.6f}<br>%{text}<extra></extra>'
-                ))
-            
-            # Add current location marker
-            fig.add_trace(go.Scattermapbox(
-                lat=[current_lat],
-                lon=[current_lon],
-                mode='markers',
-                marker=dict(
-                    size=15,
-                    color='red',
-                    symbol='circle',
-                    line=dict(width=2, color='white')
-                ),
+                marker=dict(size=28, color='#FF0000', symbol='circle'),
                 name='Current Location',
-                text=f"  Current Position<br>Lat: {current_lat:.6f}<br>Lon: {current_lon:.6f}<br>Alt: {current_alt:.1f}m<br>Satellites: {current_sat}",
-                hovertemplate='<b>Current Location</b><br>%{text}<extra></extra>'
+                text=f"Lat: {current_lat:.6f}<br>Lon: {current_lon:.6f}<br>Alt: {current_alt:.1f}m<br>Sats: {current_sat}",
+                hovertemplate='<b>Current</b><br>%{text}<extra></extra>'
             ))
-            
+
             fig.update_layout(
-                mapbox=dict(
-                    style="open-street-map",  # Free, no token required
-                    center=dict(lat=current_lat, lon=current_lon),
-                    zoom=16
-                ),
-                title={
-                    'text': f"  GPS Tracking | Lat: {current_lat:.6f}, Lon: {current_lon:.6f} | Alt: {current_alt:.1f}m | Sats: {current_sat}",
-                    'x': 0.5,
-                    'font': {'color': '#ffffff', 'size': 14}
-                },
+                mapbox=dict(style='open-street-map', center=dict(lat=current_lat, lon=current_lon), zoom=16),
+                title={'text': f"GPS Tracking | {current_lat:.6f}, {current_lon:.6f} | Alt {current_alt:.1f}m | Sats {current_sat}", 'x':0.5, 'font':{'color':'#ffffff','size':14}},
                 height=450,
-                margin=dict(l=0, r=0, t=40, b=0),
+                margin=dict(l=0,r=0,t=40,b=0),
                 paper_bgcolor='rgba(0,0,0,0)',
-                font={'color': '#ffffff'},
-                showlegend=True,
-                legend=dict(
-                    bgcolor='rgba(0,0,0,0.8)',
-                    bordercolor='#636e72',
-                    borderwidth=1,
-                    font=dict(color='white')
-                )
+                font={'color':'#ffffff'},
+                showlegend=False
             )
         else:
-            # No GPS data available
+            # No data yet
             fig.update_layout(
-                title={
-                    'text': "🌍 GPS Location - Waiting for Signal...",
-                    'x': 0.5,
-                    'font': {'color': '#ffffff', 'size': 16}
-                },
+                title={'text': '🌍 GPS Location - Waiting for Signal...', 'x':0.5, 'font':{'color':'#ffffff','size':16}},
                 height=450,
-                margin=dict(l=0, r=0, t=40, b=0),
+                margin=dict(l=0,r=0,t=40,b=0),
                 paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                font={'color': '#ffffff'},
-                annotations=[
-                    dict(
-                        text="📡 Searching for GPS signal...<br>Please wait for location data",
-                        showarrow=False,
-                        xref="paper", yref="paper",
-                        x=0.5, y=0.5,
-                        xanchor='center', yanchor='middle',
-                        font=dict(size=16, color="white"),
-                        bgcolor="rgba(0,0,0,0.7)",
-                        bordercolor="white",
-                        borderwidth=1
-                    )
-                ]
+                font={'color':'#ffffff'},
+                annotations=[dict(
+                    text='📡 Searching for GPS signal...<br>Please wait for location data',
+                    showarrow=False, xref='paper', yref='paper', x=0.5, y=0.5,
+                    xanchor='center', yanchor='middle',
+                    font=dict(size=16, color='white'),
+                    bgcolor='rgba(0,0,0,0.7)', bordercolor='white', borderwidth=1
+                )]
             )
-        
         return fig
-        
     except Exception as e:
-        # Error handling - return simple error message
         fig = go.Figure()
         fig.update_layout(
-            title={
-                'text': "⚠ GPS Map Error",
-                'x': 0.5,
-                'font': {'color': '#ffffff', 'size': 16}
-            },
+            title={'text':'⚠ GPS Map Error','x':0.5,'font':{'color':'#FF6B6B','size':16}},
             height=450,
-            margin=dict(l=0, r=0, t=40, b=0),
+            margin=dict(l=0,r=0,t=40,b=0),
             paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            font={'color': '#ffffff'},
-            annotations=[
-                dict(
-                    text=f"Map loading error: {str(e)}<br>Retrying...",
-                    showarrow=False,
-                    xref="paper", yref="paper",
-                    x=0.5, y=0.5,
-                    xanchor='center', yanchor='middle',
-                    font=dict(size=14, color="red"),
-                    bgcolor="rgba(0,0,0,0.7)",
-                    bordercolor="red",
-                    borderwidth=1
-                )
-            ]
+            font={'color':'#ffffff'},
+            annotations=[dict(
+                text=f'Error loading GPS: {e}', showarrow=False, xref='paper', yref='paper',
+                x=0.5, y=0.5, xanchor='center', yanchor='middle', font=dict(size=14, color='red'),
+                bgcolor='rgba(0,0,0,0.7)', bordercolor='red', borderwidth=1
+            )]
         )
         return fig
 
@@ -2107,6 +2093,68 @@ def update_gsr_chart(n):
         )
     )
     return fig
+
+# Simple zone dropdown info update
+@app.callback(
+    Output('zone-info-panel','children'),
+    Input('zone-dropdown','value')
+)
+def update_zone_info(zone_value):
+    zone_texts = {
+        'ZONE_A': 'Zone A selected. (Integrate real gas & worker data later)',
+        'ZONE_B': 'Zone B selected. Placeholder for future metrics.',
+        'ZONE_C': 'Zone C selected. Awaiting integration.'
+    }
+    return html.Small(zone_texts.get(zone_value, 'Select a zone.'), style={'opacity':0.8})
+
+@app.callback(
+    Output('node-context-banner','children'),
+    [Input('zone-dropdown','value'), Input('selected-node-store','data')]
+)
+def update_node_banner(zone_value, selected_node):
+    zone_label = {'ZONE_A':'Zone A','ZONE_B':'Zone B','ZONE_C':'Zone C'}.get(zone_value, 'No Zone')
+    node_id = selected_node.get('node_id') if selected_node else None
+    if node_id:
+        return html.Div([
+            html.Span(zone_label, className='zone-pill'),
+            html.Span(node_id, className='node-pill'),
+            html.Small('Live metrics reflect latest received packet (not per-node history yet).', style={'opacity':0.6})
+        ])
+    return html.Div([
+        html.Span(zone_label, className='zone-pill'),
+        html.Small('Select a node to lock context.', style={'opacity':0.6})
+    ])
+
+# Placeholder mapping of zones to synthetic node IDs (replace with real discovery later)
+ZONE_NODES = {
+    'ZONE_A': ['A-NODE-1','A-NODE-2','A-NODE-3'],
+    'ZONE_B': ['B-NODE-7','B-NODE-8'],
+    'ZONE_C': ['C-NODE-5']
+}
+
+@app.callback(
+    [Output('active-nodes-badges','children'), Output('node-dropdown','options'), Output('node-dropdown','value')],
+    Input('zone-dropdown','value')
+)
+def update_active_nodes(zone_value):
+    nodes = ZONE_NODES.get(zone_value, [])
+    badge_elems = []
+    for n in nodes:
+        badge_elems.append(html.Span(n, className='badge bg-danger me-1 mb-1', style={'fontSize':'0.6rem','letterSpacing':'.5px'}))
+    value = nodes[0] if nodes else None
+    options = [{'label': nid, 'value': nid} for nid in nodes]
+    return badge_elems, options, value
+
+@app.callback(
+    Output('selected-node-store','data'),
+    Input('node-dropdown','value'),
+    prevent_initial_call=True
+)
+def store_selected_node(node_id):
+    if not node_id:
+        raise PreventUpdate
+    return {'node_id': node_id}
+
 
 if __name__ == '__main__':
     try:
